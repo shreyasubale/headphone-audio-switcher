@@ -3,16 +3,9 @@ import requests
 import time
 from PIL import Image
 import io
-import ctypes
-from ctypes import wintypes
-import sounddevice as sd
-
-# Windows API constants for audio control
-HWND_BROADCAST = 0xFFFF
-WM_APPCOMMAND = 0x319
-APPCOMMAND_VOLUME_MUTE = 0x80000
-APPCOMMAND_MICROPHONE_VOLUME_MUTE = 0x180000
-APPCOMMAND_SYSTEM_AUDIO_DEVICE_CHANGE = 0x0E0000
+from ctypes import cast, POINTER
+from comtypes import CLSCTX_ALL
+from pycaw.pycaw import AudioUtilities
 
 # Initialize webcam
 cap = cv2.VideoCapture(0)
@@ -36,20 +29,17 @@ def send_image_to_api(image):
     response = requests.post('http://localhost:5000/predict', files=files)
     return response.json()
 
-def switch_to_headphones():
+def switch_to_headphones(device_name="Headphones"):
     """
-    Switch Windows audio output to headphones
+    Switch Windows audio output to headphones using pycaw
     """
-    # Get the handle for the window
-    hwnd = ctypes.cast(ctypes.c_void_p(HWND_BROADCAST), wintypes.HWND)
-    
-    # Send the command to change audio device
-    ctypes.windll.user32.SendMessageW(
-        hwnd,
-        WM_APPCOMMAND,
-        None,
-        APPCOMMAND_SYSTEM_AUDIO_DEVICE_CHANGE
-    )
+    devices = AudioUtilities.GetAllDevices()
+    # Find and set default device
+    for device in devices:
+        if device_name.lower() in device.FriendlyName.lower():
+            AudioUtilities.SetDefaultDevice(device)
+            print(f"Switched to {device.FriendlyName}")
+            break
 
 def has_headphones(predictions):
     """
