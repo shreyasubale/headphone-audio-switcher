@@ -1,0 +1,19 @@
+Create a separate docker-compose.yml file with:
+version: '3'
+services:
+  nginx:
+    build: .
+    ports:
+      - "80:80"
+    volumes:
+      - ./output_images:/app/output_images
+    depends_on:
+      - server
+
+  server:
+    build: .
+    command: python3 server.py
+    volumes:
+      - ./output_images:/app/output_images
+    ports:
+      - "5000:5000"
