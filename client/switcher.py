@@ -3,9 +3,10 @@ import requests
 import time
 from PIL import Image
 import io
-from ctypes import cast, POINTER
-from comtypes import CLSCTX_ALL
-from pycaw.pycaw import AudioUtilities
+import platform
+import subprocess
+import sys
+import os
 
 # Initialize webcam
 cap = cv2.VideoCapture(0)
@@ -29,17 +30,87 @@ def send_image_to_api(image):
     response = requests.post('http://localhost:5000/predict', files=files)
     return response.json()
 
-def switch_to_headphones(device_name="Headphones"):
+def switch_to_headphones_windows(device_name="Headphones"):
     """
     Switch Windows audio output to headphones using pycaw
     """
-    devices = AudioUtilities.GetAllDevices()
-    # Find and set default device
-    for device in devices:
-        if device_name.lower() in device.FriendlyName.lower():
-            AudioUtilities.SetDefaultDevice(device)
-            print(f"Switched to {device.FriendlyName}")
-            break
+    try:
+        from ctypes import cast, POINTER
+        from comtypes import CLSCTX_ALL
+        from pycaw.pycaw import AudioUtilities
+        
+        devices = AudioUtilities.GetAllDevices()
+        # Find and set default device
+        for device in devices:
+            if device_name.lower() in device.FriendlyName.lower():
+                AudioUtilities.SetDefaultDevice(device)
+                print(f"Switched to {device.FriendlyName}")
+                break
+    except ImportError:
+        print("pycaw not installed. Run: pip install pycaw")
+        sys.exit(1)
+
+def switch_to_headphones_mac(device_name="Headphones"):
+    """
+    Switch macOS audio output to headphones using osascript
+    """
+    try:
+        # Get list of audio devices
+        cmd = ["system_profiler", "SPAudioDataType"]
+        output = subprocess.check_output(cmd).decode()
+        
+        # Simple check for headphones being available
+        if "Headphones" in output:
+            # Set audio output to headphones using osascript
+            apple_script = """
+            tell application "System Preferences"
+                activate
+                set current pane to pane "Sound"
+                tell application "System Events"
+                    tell process "System Preferences"
+                        select row 2 of table 1 of scroll area 1 of tab group 1 of window 1
+                    end tell
+                end tell
+            end tell
+            """
+            subprocess.run(["osascript", "-e", apple_script])
+            print("Switched to headphones on macOS")
+    except Exception as e:
+        print(f"Error switching audio on macOS: {str(e)}")
+
+def switch_to_headphones_linux(device_name="headphones"):
+    """
+    Switch Linux audio output to headphones using pactl
+    """
+    try:
+        # Get list of sinks (output devices)
+        sinks = subprocess.check_output(["pactl", "list", "sinks"]).decode()
+        
+        # Find the headphone sink
+        for line in sinks.split('\n'):
+            if device_name.lower() in line.lower():
+                sink_name = line.split('#')[-1].strip()
+                # Set default sink
+                subprocess.run(["pactl", "set-default-sink", sink_name])
+                print(f"Switched to {sink_name}")
+                break
+    except Exception as e:
+        print(f"Error switching audio on Linux: {str(e)}")
+
+def switch_to_headphones():
+    """
+    Cross-platform audio device switching
+    """
+    system = platform.system()
+    
+    if system == "Windows":
+        switch_to_headphones_windows()
+    elif system == "Darwin":  # macOS
+        switch_to_headphones_mac()
+    elif system == "Linux":
+        switch_to_headphones_linux()
+    else:
+        print(f"Unsupported operating system: {system}")
 
 def has_headphones(predictions):
     """
@@ -51,9 +122,44 @@ def has_headphones(predictions):
             return True
     return False
 
+def print_available_devices():
+    """
+    Print available audio devices based on the operating system
+    """
+    system = platform.system()
+    
+    if system == "Windows":
+        try:
+            from pycaw.pycaw import AudioUtilities
+            devices = AudioUtilities.GetAllDevices()
+            print("Available audio devices:")
+            for device in devices:
+                print(f"- {device.FriendlyName}")
+        except ImportError:
+            print("pycaw not installed. Run: pip install pycaw")
+    
+    elif system == "Darwin":  # macOS
+        try:
+            output = subprocess.check_output(["system_profiler", "SPAudioDataType"]).decode()
+            print("Available audio devices:")
+            print(output)
+        except Exception as e:
+            print(f"Error getting audio devices on macOS: {str(e)}")
+    
+    elif system == "Linux":
+        try:
+            output = subprocess.check_output(["pactl", "list", "sinks"]).decode()
+            print("Available audio devices:")
+            print(output)
+        except Exception as e:
+            print(f"Error getting audio devices on Linux: {str(e)}")
+
 def main():
     last_capture_time = 0
     interval = 1/3  # 3 FPS
+    
+    # Print available audio devices at startup
+    print_available_devices()
     
     try:
         while True:
