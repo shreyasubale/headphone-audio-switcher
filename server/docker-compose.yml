@@ -16,5 +16,6 @@ services:
     volumes:
       - ./dataset:/datasets
       - ./output_images:/app/output_images
+      - ./models:/app/models
     ports:
-      - "5000:5000"
+      - "5001:5000"

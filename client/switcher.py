@@ -27,7 +27,7 @@ def send_image_to_api(image):
     files = {'image': ('image.jpg', img_byte_arr, 'image/jpeg')}
     
     # Send to API
-    response = requests.post('http://localhost:5000/predict', files=files)
+    response = requests.post('http://192.168.1.21:5001/predict', files=files)
     return response.json()
 
 def switch_to_headphones_windows(device_name="Headphones"):

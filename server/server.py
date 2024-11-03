@@ -14,7 +14,7 @@ OUTPUT_DIR = 'output_images'
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 # Initialize YOLO model
-model = YOLO('yolov8n.pt')
+model = YOLO('models/yolov11n_headphone.pt')
 
 @app.route('/output_images/<path:filename>')
 def serve_image(filename):
