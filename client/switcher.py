@@ -60,7 +60,7 @@ def switch_to_headphones_mac(device_name="Headphones"):
         output = subprocess.check_output(cmd).decode()
         
         # Simple check for headphones being available
-        if "Headphones" in output:
+        if "Headphones" or "Earphones" in output:
             # Set audio output to headphones using osascript
             apple_script = """
             tell application "System Preferences"
